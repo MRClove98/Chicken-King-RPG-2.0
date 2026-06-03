@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Chicken King RPG V4 Chicken Edition + Shop Label</title>
+<style>
+body{margin:0;background:#111;color:#fff;font-family:Arial}
+canvas{display:block;margin:auto;background:#3b7a3b;border:3px solid #fff}
+</style>
+</head>
+<body>
+<canvas id="game" width="1000" height="600"></canvas>
+<script>
+const c=document.getElementById("game"),ctx=c.getContext("2d");
+const keys={};
+let mapLevel=1,msg="WASD Move | SPACE Attack | E Shop | H Potion | I Inventory";
+const player={x:120,y:120,hp:100,maxHp:100,xp:0,lvl:1,coins:0,dmg:10,potions:2};
+const shop={x:900,y:80};
+let inventory=["Wooden Beak"];
+let enemies=[],boss=null;
+
+function spawnEnemy(){
+ enemies.push({x:Math.random()*900+20,y:Math.random()*500+20,hp:20+player.lvl*5,max:20+player.lvl*5,speed:1});
+}
+for(let i=0;i<8;i++)spawnEnemy();
+
+document.addEventListener("keydown",e=>{
+ keys[e.key.toLowerCase()]=true;
+ if(e.code==="Space") attack();
+ if(e.key.toLowerCase()==="i") alert("Inventory\n"+inventory.join("\n"));
+ if(e.key.toLowerCase()==="e") openShop();
+ if(e.key.toLowerCase()==="h" && player.potions>0){
+   player.potions--;
+   player.hp=Math.min(player.maxHp,player.hp+50);
+ }
+});
+document.addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+
+function openShop(){
+ if(Math.hypot(player.x-shop.x,player.y-shop.y)>80){msg="Go near shop";return;}
+ let choice=prompt("1 Potion (10)\n2 Damage +5 (25)\n3 Spawn Boss (50)");
+ if(choice==="1"&&player.coins>=10){player.coins-=10;player.potions++;}
+ if(choice==="2"&&player.coins>=25){player.coins-=25;player.dmg+=5;}
+ if(choice==="3"&&player.coins>=50&&!boss){player.coins-=50;boss={x:700,y:250,hp:300,max:300};}
+}
+
+function attack(){
+ enemies.forEach(e=>{
+  if(Math.hypot(e.x-player.x,e.y-player.y)<70)e.hp-=player.dmg;
+ });
+ if(boss&&Math.hypot(boss.x-player.x,boss.y-player.y)<90)boss.hp-=player.dmg;
+}
+
+function update(){
+ if(keys.w)player.y-=3;
+ if(keys.s)player.y+=3;
+ if(keys.a)player.x-=3;
+ if(keys.d)player.x+=3;
+
+ enemies.forEach(e=>{
+  let dx=player.x-e.x,dy=player.y-e.y,d=Math.hypot(dx,dy)||1;
+  e.x+=dx/d*e.speed; e.y+=dy/d*e.speed;
+  if(d<20)player.hp-=0.08;
+ });
+
+ for(let i=enemies.length-1;i>=0;i--){
+  if(enemies[i].hp<=0){
+   player.coins+=5; player.xp+=10;
+   inventory.push("Loot");
+   enemies.splice(i,1);
+  }
+ }
+ while(enemies.length<8)spawnEnemy();
+
+ if(player.xp>=player.lvl*50){
+  player.xp=0; player.lvl++; player.maxHp+=10; player.hp=player.maxHp;
+ }
+
+ if(boss){
+  let dx=player.x-boss.x,dy=player.y-boss.y,d=Math.hypot(dx,dy)||1;
+  boss.x+=dx/d*0.5; boss.y+=dy/d*0.5;
+  if(d<35)player.hp-=0.2;
+  if(boss.hp<=0){player.coins+=100; boss=null; msg="Boss Defeated!";}
+ }
+}
+
+function bar(x,y,w,h,v,m,col){
+ ctx.fillStyle="#333";ctx.fillRect(x,y,w,h);
+ ctx.fillStyle=col;ctx.fillRect(x,y,w*(v/m),h);
+}
+
+function drawChicken(x,y){
+ let walk=Math.sin(Date.now()/120)*2;
+ ctx.fillStyle="#FFD93D";
+ ctx.fillRect(x+4,y+8,20,16);
+ ctx.fillRect(x+16,y+2,12,12);
+ ctx.fillStyle="orange";
+ ctx.fillRect(x+28,y+6,6,4);
+ ctx.fillStyle="red";
+ ctx.fillRect(x+18,y-2,3,4);
+ ctx.fillRect(x+22,y-4,3,6);
+ ctx.fillRect(x+26,y-2,3,4);
+ ctx.fillStyle="black";
+ ctx.fillRect(x+23,y+5,2,2);
+ ctx.fillStyle="orange";
+ ctx.fillRect(x+8,y+24+walk,2,6);
+ ctx.fillRect(x+18,y+24-walk,2,6);
+ ctx.fillStyle="white";
+ ctx.fillRect(x,y+6,4,4);
+ ctx.fillRect(x-2,y+10,4,4);
+}
+
+function draw(){
+ ctx.fillStyle="#3b7a3b";
+ ctx.fillRect(0,0,1000,600);
+
+ drawChicken(player.x,player.y);
+
+ ctx.fillStyle="brown";
+ ctx.fillRect(shop.x-20,shop.y-20,40,40);
+
+ ctx.fillStyle="white";
+ ctx.font="16px Arial";
+ ctx.fillText("SHOP",shop.x-24,shop.y-30);
+
+ if(Math.hypot(player.x-shop.x,player.y-shop.y)<80){
+   ctx.fillStyle="yellow";
+   ctx.fillText("Press E",shop.x-28,shop.y-48);
+ }
+
+ enemies.forEach(e=>{
+   ctx.fillStyle="lime";
+   ctx.beginPath();
+   ctx.arc(e.x+11,e.y+11,11,0,Math.PI*2);
+   ctx.fill();
+ });
+
+ if(boss){
+   ctx.fillStyle="#FFD93D";
+   ctx.fillRect(boss.x+8,boss.y+15,35,25);
+   ctx.fillRect(boss.x+28,boss.y,20,20);
+   ctx.fillStyle="orange";
+   ctx.fillRect(boss.x+48,boss.y+8,10,6);
+   bar(250,20,500,18,boss.hp,boss.max,"magenta");
+ }
+
+ bar(20,20,200,16,player.hp,player.maxHp,"lime");
+ bar(20,45,200,12,player.xp,player.lvl*50,"cyan");
+
+ ctx.fillStyle="white";
+ ctx.fillText("Lvl "+player.lvl,20,80);
+ ctx.fillText("Coins "+player.coins,90,80);
+ ctx.fillText("Dmg "+player.dmg,180,80);
+ ctx.fillText("Potions "+player.potions,270,80);
+ ctx.fillText(msg,20,110);
+}
+function loop(){update();draw();requestAnimationFrame(loop)}
+loop();
+</script>
+</body>
+</html>
